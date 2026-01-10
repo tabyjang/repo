@@ -1,0 +1,96 @@
+{
+  "name": "[SMA v2] 2단계 - 구글시트→Supabase",
+  "nodes": [
+    {
+      "id": "start-node",
+      "name": "시작",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sheets-to-supabase",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "typeVersion": 2,
+      "webhookId": "sheets-to-supabase-webhook"
+    },
+    {
+      "id": "read-sheets",
+      "name": "구글시트 읽기",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [440, 400],
+      "parameters": {
+        "operation": "readRows",
+        "sheetId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1fa-_i8rsFpePPzaW4DFmsffJKMJGe7RBBgf2jcwNeDA"
+        },
+        "range": "A:G",
+        "options": {}
+      },
+      "typeVersion": 4.4
+    },
+    {
+      "id": "prepare-supabase-data",
+      "name": "Supabase 데이터 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 400],
+      "parameters": {
+        "jsCode": "const row = $input.item.json;\n\nreturn {\n  json: {\n    source_type: row.source_type || 'unknown',\n    source_url: row.url || null,\n    original_title: row.title || null,\n    content_body: row.content || '',\n    original_content: row.content || null,\n    era_decade: row.era || 'unknown',\n    category: 'culture',\n    keywords: row.title ? [row.title] : []\n  }\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "supabase-insert",
+      "name": "Supabase 저장",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [840, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.supabaseApi.host }}/rest/v1/senior_memory_bank",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "typeVersion": 4.2,
+      "credentials": {
+        "supabaseApi": {
+          "id": "OremO6sd2SMmb3cS",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "시작": {
+      "main": [[{"node": "구글시트 읽기", "type": "main", "index": 0}]]
+    },
+    "구글시트 읽기": {
+      "main": [[{"node": "Supabase 데이터 준비", "type": "main", "index": 0}]]
+    },
+    "Supabase 데이터 준비": {
+      "main": [[{"node": "Supabase 저장", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

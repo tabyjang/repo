@@ -1,0 +1,16 @@
+  n8n-mcp 설정 완료 상태:
+  - 위치: C:\NewProject\2026-01\n8n-claude\n8n-mcp
+  - npm install, npm run build 완료
+  - n8n 서버 실행 중: http://localhost:5678 (정상 작동 확인)
+  - API 키 설정됨
+  - 현재 워크플로우 4개 존재:
+    1. 고객 상담 자동화 (웹훅 → 긴급도 확인 → Slack)
+    2. Daily AI News Summary to Slack
+    3. Simple AI Agent Example
+    4. 8챕터(감동형)-3가지스토리 (보관됨)
+
+  이제 n8n-mcp 도구 사용해서 워크플로우 작성/수정 시작할 준비 됨.
+  .mcp.json 파일도 있고, Claude Desktop 설정도 완료됨.
+
+
+  n8n-mcp 빌드 완료. n8n 실행 중. 워크플로우 작업 시작.

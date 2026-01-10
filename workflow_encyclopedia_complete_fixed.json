@@ -1,0 +1,309 @@
+{
+  "name": "[SMA v2] 백과사전식 크롤링 파이프라인",
+  "nodes": [
+    {
+      "id": "start-node",
+      "name": "시작",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        240,
+        400
+      ],
+      "parameters": {},
+      "typeVersion": 1,
+      "disabled": false
+    },
+    {
+      "id": "http-node",
+      "name": "웹페이지 가져오기",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        440,
+        400
+      ],
+      "parameters": {
+        "url": "https://brunch.co.kr/@kakao-it/108",
+        "options": {}
+      },
+      "typeVersion": 4.2,
+      "disabled": false
+    },
+    {
+      "id": "html-node",
+      "name": "본문 추출",
+      "type": "n8n-nodes-base.html",
+      "position": [
+        640,
+        400
+      ],
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "h1, .article-title, .news-title, .post-title"
+            },
+            {
+              "key": "content",
+              "cssSelector": "article, .wrap_body, .article-body, .news-content, .post-content, main"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 1.2,
+      "disabled": false
+    },
+    {
+      "id": "prepare-prompt-node",
+      "name": "백과사전식 프롬프트 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        840,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const title = $input.item.json.title;\nconst content = $input.item.json.content;\n\nconst prompt = `당신은 1970-80년대 한국 뉴스/자료 아카이브 전문가입니다.\n\n원문 제목: ${title}\n원문 내용: ${content}\n\n위 내용에서 5W1H 기반 백과사전식 정보를 빠짐없이 추출하여 JSON 형식으로 반환하세요. **원본 내용은 절대 재작성하지 마세요.**\n\n## 추출 항목 (9개 카테고리, 30+ 필드):\n\n### 1. 시간 정보 (WHEN)\n- article_date: 기사 작성 날짜 (YYYY-MM-DD, 없으면 null)\n- event_date: 사건 발생 날짜 (YYYY-MM-DD, 없으면 null)\n- event_time: 사건 발생 시각 (HH:MM, 없으면 null)\n- time_period: 시간대 (\"오전\", \"오후\", \"저녁\", 없으면 null)\n- season: 계절 (\"봄\", \"여름\", \"가을\", \"겨울\", 없으면 null)\n\n### 2. 장소 정보 (WHERE) - 계층 구조\n- region: 광역 (예: \"서울특별시\", \"부산광역시\")\n- city: 시 (예: \"서울\")\n- district: 구 (예: \"중구\")\n- dong: 동 (예: \"명동\")\n- specific_location: 구체적 장소 (예: \"명동성당 앞\")\n- address: 전체 주소 (있으면, 없으면 null)\n\n### 3. 인물 정보 (WHO) - 배열\n- people: [{name, age, gender, occupation, organization, role_in_event, quote}]\n  - name: 이름 (필수)\n  - age: 나이 (없으면 null)\n  - gender: 성별 (\"남성\", \"여성\", 없으면 null)\n  - occupation: 직업/직함 (없으면 null)\n  - organization: 소속 기관/단체 (없으면 null)\n  - role_in_event: 사건에서 역할 (없으면 null)\n  - quote: 발언/인용문 (없으면 null)\n\n### 4. 사건 정보 (WHAT)\n- event_type: 사건 유형 (예: \"정치집회\", \"경제정책 발표\")\n- event_category: 사건 분류 (예: \"민주화운동\", \"산업화\")\n- headline: 헤드라인/제목\n- event_summary: 사건 요약 (3-5문장)\n\n### 5. 맥락 (WHY/HOW)\n- cause: 사건 원인/배경 (2-3문장)\n- result: 사건 결과/영향 (2-3문장)\n- social_context: 사회적 맥락 (예: \"1980년 서울의 봄\")\n- historical_significance: 역사적 의의 (2-3문장)\n\n### 6. 숫자 데이터 - 배열\n- numbers: [{category, item, value, unit, comparison}]\n  - category: 숫자 분류 (\"count\", \"price\", \"distance\", \"percentage\")\n  - item: 항목명 (예: \"참가인원\", \"쌀값\")\n  - value: 수치 (숫자)\n  - unit: 단위 (예: \"명\", \"원\", \"km\")\n  - comparison: 비교 (예: \"전주 대비 3배 증가\", 없으면 null)\n\n### 7. 배경 묘사\n- weather: 날씨 (예: \"맑음, 기온 18도\", 없으면 null)\n- atmosphere: 분위기 (예: \"긴장감 속 평화로운 분위기\")\n- visual_description: 시각적 묘사 (예: \"흰색 셔츠 입은 대학생들\")\n- sounds: 소리 (예: \"구호 소리, 찬송가\", 없으면 null)\n- smells: 냄새 (예: \"최루탄 냄새\", 없으면 null)\n- crowd_size: 군중 규모 (예: \"약 1만명\", 없으면 null)\n\n### 8. 출처/신뢰도\n- source: 출처 (예: \"동아일보\", \"개인 블로그\")\n- reporter: 기자/작성자 (없으면 null)\n- credibility: 신뢰도 (\"high\", \"medium\", \"low\", \"unknown\")\n\n### 9. 검색 메타데이터\n- keywords: 15-20개 키워드 배열 (인명, 지명, 사건명, 시대적 키워드 포함)\n- tags: 태그 배열 (예: [\"정치\", \"민주화\", \"집회\"])\n- sentiment: 감성 (\"nostalgic\", \"hopeful\", \"melancholic\", \"joyful\", \"tense\")\n- era_decade: \"1970s\" 또는 \"1980s\" (없으면 \"unknown\")\n- category: \"society\", \"culture\", \"economy\", \"politics\", \"education\" 중 하나\n\n## 출력 형식:\n반드시 아래 형식의 유효한 JSON만 반환하세요. 설명이나 마크다운 코드블록 없이 순수 JSON만 출력하세요:\n\n{\n  \"article_date\": \"1980-05-18\",\n  \"event_date\": \"1980-05-18\",\n  \"event_time\": \"10:00\",\n  \"time_period\": \"오전\",\n  \"season\": \"봄\",\n  \"region\": \"서울특별시\",\n  \"city\": \"서울\",\n  \"district\": \"중구\",\n  \"dong\": \"명동\",\n  \"specific_location\": \"명동성당 앞\",\n  \"address\": \"서울특별시 중구 명동길 74\",\n  \"people\": [{\n    \"name\": \"김영삼\",\n    \"age\": 52,\n    \"gender\": \"남성\",\n    \"occupation\": \"국회의원\",\n    \"organization\": \"신민당\",\n    \"role_in_event\": \"집회 연설자\",\n    \"quote\": \"민주주의는 피를 먹고 자란다\"\n  }],\n  \"event_type\": \"정치집회\",\n  \"event_category\": \"민주화운동\",\n  \"headline\": \"명동 민주화 집회 1만명 운집\",\n  \"event_summary\": \"1980년 5월 18일 명동성당 앞에서 민주화를 요구하는 대규모 집회가 열렸다. 신민당 김영삼 의원을 비롯한 야당 지도자들과 대학생 약 1만명이 참석했다. 계엄령 반대와 민주헌정 회복을 요구하는 평화 시위였으나 경찰이 집회를 저지했다.\",\n  \"cause\": \"박정희 대통령 서거 이후 계엄령이 선포되고 정치 활동이 제한되자 민주화를 요구하는 목소리가 커졌다. 신군부의 권력 장악 시도에 대한 국민들의 우려가 집회로 표출되었다.\",\n  \"result\": \"경찰의 저지로 집회는 평화적으로 해산되었으나, 이후 5·18 광주민주화운동으로 이어지는 계기가 되었다. 서울의 봄 시기 민주화 열기를 보여주는 상징적 사건이 되었다.\",\n  \"social_context\": \"1980년 서울의 봄 시기, 박정희 사후 민주화에 대한 기대감이 높았던 시기\",\n  \"historical_significance\": \"1980년 5월 광주민주화운동의 전조가 된 사건으로, 한국 민주화 운동사에서 중요한 전환점이 되었다. 평화 시위의 전통을 확립하고 시민의 정치 참여 의지를 보여준 사례이다.\",\n  \"numbers\": [\n    {\"category\": \"count\", \"item\": \"참가인원\", \"value\": 10000, \"unit\": \"명\", \"comparison\": \"전주 대비 3배 증가\"},\n    {\"category\": \"count\", \"item\": \"경찰 병력\", \"value\": 2000, \"unit\": \"명\", \"comparison\": null}\n  ],\n  \"weather\": \"맑음, 기온 18도\",\n  \"atmosphere\": \"긴장감 속에서도 평화로운 분위기, 질서 정연한 집회\",\n  \"visual_description\": \"흰색 셔츠 입은 대학생들이 플래카드를 들고 있고, 정장 차림의 야당 지도자들이 연단에 서 있다\",\n  \"sounds\": \"'민주헌정 회복하라' 구호 소리, 찬송가 '승리하리로다' 제창\",\n  \"smells\": null,\n  \"crowd_size\": \"약 1만명\",\n  \"source\": \"동아일보\",\n  \"reporter\": \"김기자\",\n  \"credibility\": \"high\",\n  \"keywords\": [\"1980년\", \"5월\", \"명동\", \"명동성당\", \"김영삼\", \"신민당\", \"집회\", \"민주화\", \"계엄령\", \"서울의봄\", \"대학생\", \"정치\", \"민주주의\", \"운동\", \"평화시위\", \"광화문\", \"야당\", \"신군부\", \"박정희\", \"전두환\"],\n  \"tags\": [\"정치\", \"민주화\", \"집회\", \"1980년대\", \"서울\"],\n  \"sentiment\": \"hopeful\",\n  \"era_decade\": \"1980s\",\n  \"category\": \"politics\"\n}`;\n\nconst requestBody = {\n  contents: [{\n    parts: [{\n      text: prompt\n    }]\n  }]\n};\n\nreturn {\n  json: {\n    requestBody: requestBody,\n    originalTitle: title,\n    originalContent: content,\n    sourceUrl: $('웹페이지 가져오기').params.url\n  }\n};"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "gemini-extract-node",
+      "name": "Gemini API 호출",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1040,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=AIzaSyC-4K9UegZdHkOINTVmhDgAa-AL4m3xwyc",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.requestBody }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "typeVersion": 4.2,
+      "disabled": false
+    },
+    {
+      "id": "parse-json-node",
+      "name": "백과사전식 JSON 파싱",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1240,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const response = $input.item.json;\nconst preparedData = $('백과사전식 프롬프트 준비').item.json;\n\nconst textResponse = response.candidates?.[0]?.content?.parts?.[0]?.text || '';\n\nlet jsonText = textResponse.trim();\nif (jsonText.startsWith('```json')) {\n  jsonText = jsonText.replace(/```json\\n?/, '').replace(/\\n?```$/, '');\n} else if (jsonText.startsWith('```')) {\n  jsonText = jsonText.replace(/```\\n?/, '').replace(/\\n?```$/, '');\n}\n\ntry {\n  const encyclopediaMetadata = JSON.parse(jsonText);\n  \n  return {\n    json: {\n      ...encyclopediaMetadata,\n      original_title: preparedData.originalTitle,\n      original_content: preparedData.originalContent,\n      source_url: preparedData.sourceUrl\n    }\n  };\n} catch (error) {\n  throw new Error('백과사전식 JSON 파싱 실패: ' + error.message + '\\n\\nGemini 응답:\\n' + jsonText);\n}"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "prepare-embedding-node",
+      "name": "임베딩 요청 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1440,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const metadata = $input.item.json;\n\nconst embeddingRequest = {\n  content: {\n    parts: [{\n      text: metadata.original_content\n    }]\n  }\n};\n\nreturn {\n  json: {\n    embeddingRequest: embeddingRequest,\n    encyclopediaMetadata: metadata\n  }\n};"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "embeddings-api-node",
+      "name": "Gemini Embeddings API",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1640,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=AIzaSyC-4K9UegZdHkOINTVmhDgAa-AL4m3xwyc",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.embeddingRequest }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "typeVersion": 4.2,
+      "disabled": false
+    },
+    {
+      "id": "code-prepare-supabase-node",
+      "name": "Supabase 백과사전식 데이터 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1840,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const embeddingResponse = $input.item.json;\nconst meta = $('임베딩 요청 준비').item.json.encyclopediaMetadata;\n\nconst embeddingVector = embeddingResponse.embedding?.values || [];\n\n// ✅ VECTOR(768) 타입을 위해 문자열로 변환\nconst embeddingString = `[${embeddingVector.join(\",\")}]`;\n\n// 백과사전식 상세 메타데이터를 JSONB로 저장\nconst encyclopediaDetails = {\n  article_date: meta.article_date,\n  event_time: meta.event_time,\n  time_period: meta.time_period,\n  season: meta.season,\n  region: meta.region,\n  city: meta.city,\n  district: meta.district,\n  dong: meta.dong,\n  specific_location: meta.specific_location,\n  address: meta.address,\n  people: meta.people,\n  event_type: meta.event_type,\n  event_category: meta.event_category,\n  headline: meta.headline,\n  event_summary: meta.event_summary,\n  cause: meta.cause,\n  result: meta.result,\n  social_context: meta.social_context,\n  historical_significance: meta.historical_significance,\n  numbers: meta.numbers,\n  weather: meta.weather,\n  atmosphere: meta.atmosphere,\n  visual_description: meta.visual_description,\n  sounds: meta.sounds,\n  smells: meta.smells,\n  crowd_size: meta.crowd_size,\n  source: meta.source,\n  reporter: meta.reporter,\n  credibility: meta.credibility,\n  tags: meta.tags\n};\n\n// 자주 검색하는 필드는 별도 컬럼으로 저장 (인덱싱 효율)\nconst supabaseData = {\n  source_type: 'encyclopedia_article',\n  source_url: meta.source_url || null,\n  original_title: meta.original_title || null,\n  content_body: meta.original_content,  // ✅ 원본 본문 보존\n  original_content: meta.original_content || null,\n  event_date: meta.event_date || null,\n  era_decade: meta.era_decade || null,\n  location_info: meta.region && meta.district && meta.dong \n    ? `${meta.region} > ${meta.district} > ${meta.dong}` \n    : (meta.region || null),\n  sentiment_tags: meta.sentiment ? [meta.sentiment] : null,\n  category: meta.category || null,\n  keywords: meta.keywords || null,\n  embedding: embeddingString,\n  metadata: JSON.stringify(encyclopediaDetails)  // ✅ JSONB를 문자열로 변환\n};\n\nreturn { json: supabaseData };"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "supabase-node",
+      "name": "Supabase REST API 저장",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        2040,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.supabaseApi.host }}/rest/v1/senior_memory_bank",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "typeVersion": 4.2,
+      "credentials": {
+        "supabaseApi": {
+          "id": "OremO6sd2SMmb3cS",
+          "name": "Supabase account"
+        }
+      },
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "시작": {
+      "main": [
+        [
+          {
+            "node": "웹페이지 가져오기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "웹페이지 가져오기": {
+      "main": [
+        [
+          {
+            "node": "본문 추출",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "본문 추출": {
+      "main": [
+        [
+          {
+            "node": "백과사전식 프롬프트 준비",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "백과사전식 프롬프트 준비": {
+      "main": [
+        [
+          {
+            "node": "Gemini API 호출",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini API 호출": {
+      "main": [
+        [
+          {
+            "node": "백과사전식 JSON 파싱",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "백과사전식 JSON 파싱": {
+      "main": [
+        [
+          {
+            "node": "임베딩 요청 준비",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "임베딩 요청 준비": {
+      "main": [
+        [
+          {
+            "node": "Gemini Embeddings API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Embeddings API": {
+      "main": [
+        [
+          {
+            "node": "Supabase 백과사전식 데이터 준비",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase 백과사전식 데이터 준비": {
+      "main": [
+        [
+          {
+            "node": "Supabase 백과사전식 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {}
+}

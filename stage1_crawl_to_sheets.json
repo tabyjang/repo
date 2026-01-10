@@ -1,0 +1,133 @@
+{
+  "name": "[SMA v2] 1단계 - 크롤링→구글시트",
+  "nodes": [
+    {
+      "id": "start-node",
+      "name": "시작",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 400],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "crawl-start",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "typeVersion": 2,
+      "webhookId": "crawl-start-webhook"
+    },
+    {
+      "id": "read-csv",
+      "name": "URL 리스트 읽기",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "position": [440, 400],
+      "parameters": {
+        "fileSelector": "c:/NewProject/2026-01/n8n-claude/crawl_urls.csv"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "csv-to-json",
+      "name": "CSV 파싱",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 400],
+      "parameters": {
+        "jsCode": "const csv = $input.item.binary.data.toString('utf-8');\nconst lines = csv.split('\\n').filter(line => line.trim() && !line.startsWith('url'));\n\nconst items = lines.map(line => {\n  const [url, source_type, era] = line.split(',');\n  return {\n    json: {\n      url: url.trim(),\n      source_type: source_type.trim(),\n      era: era.trim()\n    }\n  };\n});\n\nreturn items;"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "http-request",
+      "name": "웹페이지 가져오기",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [840, 400],
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "typeVersion": 4.2
+    },
+    {
+      "id": "html-extract",
+      "name": "본문 추출",
+      "type": "n8n-nodes-base.html",
+      "position": [1040, 400],
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {"key": "title", "cssSelector": "h1, .article-title, .news-title, .post-title, title"},
+            {"key": "content", "cssSelector": "article, .wrap_body, .article-body, .news-content, .post-content, main"}
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 1.2
+    },
+    {
+      "id": "prepare-sheets-data",
+      "name": "구글시트 데이터 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [1240, 400],
+      "parameters": {
+        "jsCode": "const urlData = $('CSV 파싱').item.json;\nconst extracted = $input.item.json;\n\nreturn {\n  json: {\n    url: urlData.url,\n    source_type: urlData.source_type,\n    era: urlData.era,\n    title: extracted.title || '',\n    content: extracted.content || '',\n    crawled_at: new Date().toISOString(),\n    status: 'success'\n  }\n};"
+      },
+      "typeVersion": 2
+    },
+    {
+      "id": "google-sheets",
+      "name": "구글시트에 저장",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [1440, 400],
+      "parameters": {
+        "operation": "appendRow",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "1fa-_i8rsFpePPzaW4DFmsffJKMJGe7RBBgf2jcwNeDA"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "Sheet1"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "url": "={{ $json.url }}",
+            "source_type": "={{ $json.source_type }}",
+            "era": "={{ $json.era }}",
+            "title": "={{ $json.title }}",
+            "content": "={{ $json.content }}",
+            "crawled_at": "={{ $json.crawled_at }}",
+            "status": "={{ $json.status }}"
+          }
+        },
+        "options": {}
+      },
+      "typeVersion": 4.4
+    }
+  ],
+  "connections": {
+    "시작": {
+      "main": [[{"node": "URL 리스트 읽기", "type": "main", "index": 0}]]
+    },
+    "URL 리스트 읽기": {
+      "main": [[{"node": "CSV 파싱", "type": "main", "index": 0}]]
+    },
+    "CSV 파싱": {
+      "main": [[{"node": "웹페이지 가져오기", "type": "main", "index": 0}]]
+    },
+    "웹페이지 가져오기": {
+      "main": [[{"node": "본문 추출", "type": "main", "index": 0}]]
+    },
+    "본문 추출": {
+      "main": [[{"node": "구글시트 데이터 준비", "type": "main", "index": 0}]]
+    },
+    "구글시트 데이터 준비": {
+      "main": [[{"node": "구글시트에 저장", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

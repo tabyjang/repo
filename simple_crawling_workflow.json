@@ -1,0 +1,139 @@
+{
+  "name": "[SMA v2] 간단 크롤링",
+  "nodes": [
+    {
+      "id": "start-node",
+      "name": "시작",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [240, 400],
+      "parameters": {},
+      "typeVersion": 1,
+      "disabled": false
+    },
+    {
+      "id": "read-csv",
+      "name": "URL 리스트 읽기",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "position": [440, 400],
+      "parameters": {
+        "filePath": "c:\\NewProject\\2026-01\\n8n-claude\\crawl_urls.csv"
+      },
+      "typeVersion": 1,
+      "disabled": false
+    },
+    {
+      "id": "csv-to-json",
+      "name": "CSV 파싱",
+      "type": "n8n-nodes-base.code",
+      "position": [640, 400],
+      "parameters": {
+        "jsCode": "const csv = $input.item.binary.data.toString('utf-8');\nconst lines = csv.split('\\n').filter(line => line.trim() && !line.startsWith('url'));\n\nconst items = lines.map(line => {\n  const [url, source_type, era] = line.split(',');\n  return {\n    json: {\n      url: url.trim(),\n      source_type: source_type.trim(),\n      era: era.trim()\n    }\n  };\n});\n\nreturn items;"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "http-request",
+      "name": "웹페이지 가져오기",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [840, 400],
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "typeVersion": 4.2,
+      "disabled": false
+    },
+    {
+      "id": "html-extract",
+      "name": "본문 추출",
+      "type": "n8n-nodes-base.html",
+      "position": [1040, 400],
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {"key": "title", "cssSelector": "h1, .article-title, .news-title, .post-title, title"},
+            {"key": "content", "cssSelector": "article, .wrap_body, .article-body, .news-content, .post-content, main"}
+          ]
+        },
+        "options": {}
+      },
+      "typeVersion": 1.2,
+      "disabled": false
+    },
+    {
+      "id": "prepare-data",
+      "name": "Supabase 데이터 준비",
+      "type": "n8n-nodes-base.code",
+      "position": [1240, 400],
+      "parameters": {
+        "jsCode": "const urlData = $('CSV 파싱').item.json;\nconst extracted = $input.item.json;\n\nreturn {\n  json: {\n    source_type: urlData.source_type,\n    source_url: urlData.url,\n    original_title: extracted.title,\n    content_body: extracted.content,\n    original_content: extracted.content,\n    era_decade: urlData.era === '1970s' ? '1970s' : (urlData.era === '1980s' ? '1980s' : 'unknown'),\n    category: 'culture',\n    keywords: [extracted.title]\n  }\n};"
+      },
+      "typeVersion": 2,
+      "disabled": false
+    },
+    {
+      "id": "supabase-insert",
+      "name": "Supabase 저장",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1440, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $credentials.supabaseApi.host }}/rest/v1/senior_memory_bank",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "typeVersion": 4.2,
+      "credentials": {
+        "supabaseApi": {
+          "id": "OremO6sd2SMmb3cS",
+          "name": "Supabase account"
+        }
+      },
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "시작": {
+      "main": [[{"node": "URL 리스트 읽기", "type": "main", "index": 0}]]
+    },
+    "URL 리스트 읽기": {
+      "main": [[{"node": "CSV 파싱", "type": "main", "index": 0}]]
+    },
+    "CSV 파싱": {
+      "main": [[{"node": "웹페이지 가져오기", "type": "main", "index": 0}]]
+    },
+    "웹페이지 가져오기": {
+      "main": [[{"node": "본문 추출", "type": "main", "index": 0}]]
+    },
+    "본문 추출": {
+      "main": [[{"node": "Supabase 데이터 준비", "type": "main", "index": 0}]]
+    },
+    "Supabase 데이터 준비": {
+      "main": [[{"node": "Supabase 저장", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {}
+}

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사주 분석 신청</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      font-size: 28px;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: #666;
+      font-size: 14px;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+      font-size: 14px;
+    }
+    input, select {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 16px;
+      transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #0f3460;
+      box-shadow: 0 0 0 3px rgba(15, 52, 96, 0.1);
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+    }
+    .row .form-group {
+      flex: 1;
+    }
+    .gender-options {
+      display: flex;
+      gap: 12px;
+    }
+    .gender-option {
+      flex: 1;
+    }
+    .gender-option input {
+      display: none;
+    }
+    .gender-option label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-bottom: 0;
+    }
+    .gender-option input:checked + label {
+      border-color: #0f3460;
+      background: #0f3460;
+      color: white;
+    }
+    .submit-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #0f3460 0%, #1a1a2e 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      margin-top: 10px;
+    }
+    .submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(15, 52, 96, 0.3);
+    }
+    .submit-btn:active {
+      transform: translateY(0);
+    }
+    .note {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #888;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 10px;
+      display: none;
+    }
+    #result.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+    #result.error {
+      background: #f8d7da;
+      color: #721c24;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>사주 분석 신청</h1>
+      <p>정확한 분석을 위해 생년월일시를 입력해주세요</p>
+    </div>
+
+    <form id="sajuForm">
+      <div class="form-group">
+        <label for="name">이름</label>
+        <input type="text" id="name" name="name" placeholder="홍길동" required>
+      </div>
+
+      <div class="form-group">
+        <label for="email">이메일 (결과 수신용)</label>
+        <input type="email" id="email" name="email" placeholder="example@email.com" required>
+      </div>
+
+      <div class="form-group">
+        <label>성별</label>
+        <div class="gender-options">
+          <div class="gender-option">
+            <input type="radio" id="male" name="gender" value="male" required>
+            <label for="male">남성</label>
+          </div>
+          <div class="gender-option">
+            <input type="radio" id="female" name="gender" value="female">
+            <label for="female">여성</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="birth_year">출생년도</label>
+          <select id="birth_year" name="birth_year" required>
+            <option value="">년도</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="birth_month">월</label>
+          <select id="birth_month" name="birth_month" required>
+            <option value="">월</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="birth_day">일</label>
+          <select id="birth_day" name="birth_day" required>
+            <option value="">일</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="birth_time">태어난 시간</label>
+        <select id="birth_time" name="birth_time" required>
+          <option value="">시간 선택</option>
+          <option value="자시">자시 (23:30 ~ 01:30)</option>
+          <option value="축시">축시 (01:30 ~ 03:30)</option>
+          <option value="인시">인시 (03:30 ~ 05:30)</option>
+          <option value="묘시">묘시 (05:30 ~ 07:30)</option>
+          <option value="진시">진시 (07:30 ~ 09:30)</option>
+          <option value="사시">사시 (09:30 ~ 11:30)</option>
+          <option value="오시">오시 (11:30 ~ 13:30)</option>
+          <option value="미시">미시 (13:30 ~ 15:30)</option>
+          <option value="신시">신시 (15:30 ~ 17:30)</option>
+          <option value="유시">유시 (17:30 ~ 19:30)</option>
+          <option value="술시">술시 (19:30 ~ 21:30)</option>
+          <option value="해시">해시 (21:30 ~ 23:30)</option>
+          <option value="모름">모름</option>
+        </select>
+      </div>
+
+      <button type="submit" class="submit-btn">사주 분석 신청하기</button>
+    </form>
+
+    <div id="result"></div>
+
+    <p class="note">* 입력하신 정보는 사주 분석 목적으로만 사용됩니다.</p>
+  </div>
+
+  <script>
+    // 년도 옵션 생성 (1940 ~ 현재)
+    const yearSelect = document.getElementById('birth_year');
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= 1940; year--) {
+      const option = document.createElement('option');
+      option.value = year;
+      option.textContent = year + '년';
+      yearSelect.appendChild(option);
+    }
+
+    // 월 옵션 생성
+    const monthSelect = document.getElementById('birth_month');
+    for (let month = 1; month <= 12; month++) {
+      const option = document.createElement('option');
+      option.value = month;
+      option.textContent = month + '월';
+      monthSelect.appendChild(option);
+    }
+
+    // 일 옵션 생성
+    const daySelect = document.getElementById('birth_day');
+    for (let day = 1; day <= 31; day++) {
+      const option = document.createElement('option');
+      option.value = day;
+      option.textContent = day + '일';
+      daySelect.appendChild(option);
+    }
+
+    // 폼 제출
+    document.getElementById('sajuForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const resultDiv = document.getElementById('result');
+      const submitBtn = document.querySelector('.submit-btn');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = '전송 중...';
+
+      const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        gender: document.querySelector('input[name="gender"]:checked').value,
+        birth_year: document.getElementById('birth_year').value,
+        birth_month: document.getElementById('birth_month').value,
+        birth_day: document.getElementById('birth_day').value,
+        birth_time: document.getElementById('birth_time').value
+      };
+
+      try {
+        // n8n 웹훅 URL로 변경하세요
+        const response = await fetch('http://localhost:5678/webhook/saju-analysis', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          resultDiv.className = 'success';
+          resultDiv.innerHTML = '신청이 완료되었습니다!<br>분석 결과는 이메일로 발송됩니다.';
+          this.reset();
+        } else {
+          throw new Error(data.message || '오류가 발생했습니다');
+        }
+      } catch (error) {
+        resultDiv.className = 'error';
+        resultDiv.textContent = '오류: ' + error.message;
+      }
+
+      submitBtn.disabled = false;
+      submitBtn.textContent = '사주 분석 신청하기';
+    });
+  </script>
+</body>
+</html>
